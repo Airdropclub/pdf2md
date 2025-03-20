@@ -148,7 +148,8 @@ export async function generateResumeExcel(
   // Vercel Blobにアップロード
   const file = await fs.promises.readFile(outputPath);
   const blob = await put(`resumes/${path.basename(outputPath)}`, file, {
-    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    access: 'public'
   });
   
   // 一時ファイルの削除

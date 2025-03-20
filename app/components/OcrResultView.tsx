@@ -352,7 +352,7 @@ export default function OcrResultView({ ocrResult, analyzing }: OcrResultViewPro
         {ocrResult.pages.map((page, pageIdx) => (
           <div
             key={`page-${pageIdx}`}
-            ref={(el) => (pageRefs.current[pageIdx] = el)}
+            ref={(el) => { pageRefs.current[pageIdx] = el; return undefined; }}
             data-page-index={pageIdx}
             className="mb-8 last:mb-0"
           >
@@ -391,7 +391,7 @@ export default function OcrResultView({ ocrResult, analyzing }: OcrResultViewPro
                     rehypePlugins={[rehypeKatex]}
                     components={{
                       pre: ({ ...props }) => {
-                        const match = props.children?.[0]?.props?.className?.includes("language-");
+                        const match = Array.isArray(props.children) && props.children[0]?.props?.className?.includes("language-");
                         return (
                           <div
                             className={`my-2 overflow-auto rounded-md ${
@@ -405,8 +405,9 @@ export default function OcrResultView({ ocrResult, analyzing }: OcrResultViewPro
                           </div>
                         );
                       },
-                      code: ({ inline, className, children, ...props }) => {
+                      code: ({ className, children, ...props }: { className?: string, children?: React.ReactNode, inline?: boolean } & React.HTMLAttributes<HTMLElement>) => {
                         const match = /language-(\w+)/.exec(className || "");
+                        const inline = props.hasOwnProperty('inline') ? (props as { inline: boolean }).inline : false;
                         return !inline && match ? (
                           <code className={className} {...props}>
                             {children}
