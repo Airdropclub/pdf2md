@@ -1,7 +1,6 @@
 "use client";
 
 import { OCRResponse } from "@mistralai/mistralai/src/models/components/ocrresponse.js";
-import { OCRPageObject } from "@mistralai/mistralai/src/models/components/ocrpageobject.js";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
@@ -10,6 +9,7 @@ import "katex/dist/katex.min.css";
 import { useState, useRef, useEffect } from "react";
 import { Copy, Check, Download } from "lucide-react";
 import { downloadAsZip } from "../action/downloadHelper";
+import ExportOptions from "./ExportOptions";
 
 type OcrResultViewProps = {
   ocrResult: OCRResponse | { success: false; error: string } | null;
@@ -20,10 +20,6 @@ export default function OcrResultView({ ocrResult, analyzing }: OcrResultViewPro
   const [visiblePages, setVisiblePages] = useState<number[]>([]);
   const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const containerRef = useRef<HTMLDivElement>(null);
-  const [copyMessage, setCopyMessage] = useState<{
-    text: string;
-    pageIndex?: number | null;
-  } | null>(null);
   const [copyingAll, setCopyingAll] = useState(false);
   const [copyingPage, setCopyingPage] = useState<number | null>(null);
   const [pageInputValue, setPageInputValue] = useState<string>("");
@@ -51,9 +47,8 @@ export default function OcrResultView({ ocrResult, analyzing }: OcrResultViewPro
       }
     } catch (err) {
       console.error("Copy failed:", err);
-      setCopyMessage({ text: "Copy failed", pageIndex });
       setTimeout(() => {
-        setCopyMessage(null);
+        // エラー状態をリセット
       }, 3000);
     }
   };
@@ -82,10 +77,6 @@ export default function OcrResultView({ ocrResult, analyzing }: OcrResultViewPro
       await downloadAsZip(ocrResult, `ocr-export-${timestamp}`);
     } catch (error) {
       console.error("ZIP download failed:", error);
-      setCopyMessage({ text: "Download failed", pageIndex: null });
-      setTimeout(() => {
-        setCopyMessage(null);
-      }, 3000);
     } finally {
       setIsDownloading(false);
     }
@@ -101,10 +92,6 @@ export default function OcrResultView({ ocrResult, analyzing }: OcrResultViewPro
       await downloadAsZip(ocrResult, `ocr-markdown-${timestamp}`, true);
     } catch (error) {
       console.error("Markdown download failed:", error);
-      setCopyMessage({ text: "Download failed", pageIndex: null });
-      setTimeout(() => {
-        setCopyMessage(null);
-      }, 3000);
     } finally {
       setIsDownloading(false);
     }
@@ -303,355 +290,169 @@ export default function OcrResultView({ ocrResult, analyzing }: OcrResultViewPro
                   setPageInputValue(""); // 入力をクリア
                 }
               }}
-              className={`w-16 text-center text-sm px-2 py-1.5 bg-gray-50 text-gray-600 rounded-l border ${
-                isInputError ? "border-red-300" : "border-gray-200"
+              className={`w-16 text-center border rounded-md py-1 px-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                isInputError ? "border-red-500 bg-red-50" : "border-gray-300"
               }`}
-              aria-label="Enter page number"
-              title="Enter page number"
+              aria-label="Page number"
             />
-            <span className="bg-gray-50 border border-l-0 border-gray-200 px-2 py-1.5 text-sm text-gray-600 rounded-r">
-              /{ocrResult.pages.length}
-            </span>
+            <span className="mx-1 text-gray-600">/</span>
+            <span className="text-gray-600">{ocrResult.pages.length}</span>
           </form>
-          {isInputError && (
-            <div className="absolute -bottom-6 left-0 text-xs text-red-500 bg-white px-2 py-1 rounded shadow-sm border border-red-100">
-              Enter a valid page number
-            </div>
-          )}
-        </div>
-
-        {/* ダウンロードとすべてコピーボタンを右側に配置 */}
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleDownloadZip}
-            className={`text-sm px-3 py-1.5 bg-gray-50 text-gray-600 hover:bg-gray-100 rounded transition-colors flex items-center ${
-              isDownloading ? "opacity-70 cursor-wait" : ""
-            }`}
-            disabled={isDownloading}
-            title="Download markdown and images as ZIP file"
-          >
-            {isDownloading ? (
-              <svg
-                className="animate-spin h-5 w-5"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-            ) : (
-              <div className="flex items-center">
-                <Download className="h-5 w-5 mr-1" />
-                <span>Images + MD (ZIP)</span>
-              </div>
-            )}
-          </button>
-          <button
-            onClick={handleDownloadMarkdown}
-            className={`text-sm px-3 py-1.5 bg-gray-50 text-gray-600 hover:bg-gray-100 rounded transition-colors flex items-center ${
-              isDownloading ? "opacity-70 cursor-wait" : ""
-            }`}
-            disabled={isDownloading}
-            title="Download markdown only"
-          >
-            {isDownloading ? (
-              <svg
-                className="animate-spin h-5 w-5"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-            ) : (
-              <div className="flex items-center">
-                <Download className="h-5 w-5 mr-1" />
-                <span>MD only</span>
-              </div>
-            )}
-          </button>
-          <button
-            onClick={copyAllMarkdown}
-            className={`text-sm px-3 py-1.5 bg-gray-50 text-gray-600 hover:bg-gray-100 rounded transition-colors flex items-center`}
-            title="Copy markdown from all pages"
-          >
-            {copyingAll ? (
-              <Check className="h-5 w-5 mr-1 text-green-500" />
-            ) : (
-              <Copy className="h-5 w-5 mr-1" />
-            )}
-            {copyingAll ? "Copied" : "Copy All"}
-          </button>
-          {copyMessage && copyMessage.pageIndex === null && (
-            <span className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded animate-pulse">
-              {copyMessage.text}
-            </span>
-          )}
         </div>
       </div>
 
-      {/* プログレスバー（小画面向け） */}
-      <div className="md:hidden bg-gray-100 h-1 w-full">
-        {ocrResult.pages.map((_, idx) => (
-          <div
-            key={`progress-${idx}`}
-            className={`h-full transition-colors ${
-              visiblePages.includes(idx) ? "bg-gray-500" : "bg-gray-200"
-            }`}
-            style={{
-              width: `${100 / ocrResult.pages.length}%`,
-              display: "inline-block",
-            }}
-          />
-        ))}
+      {/* アクションボタン */}
+      <div className="bg-gray-50 border-b p-3 flex flex-wrap gap-2">
+        <button
+          onClick={copyAllMarkdown}
+          disabled={copyingAll}
+          className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded flex items-center text-sm"
+        >
+          {copyingAll ? (
+            <>
+              <Check className="h-4 w-4 mr-1.5 text-green-600" />
+              <span>Copied!</span>
+            </>
+          ) : (
+            <>
+              <Copy className="h-4 w-4 mr-1.5" />
+              <span>Copy All</span>
+            </>
+          )}
+        </button>
+
+        <button
+          onClick={handleDownloadMarkdown}
+          disabled={isDownloading}
+          className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded flex items-center text-sm"
+        >
+          <Download className="h-4 w-4 mr-1.5" />
+          <span>Markdown</span>
+        </button>
+
+        <button
+          onClick={handleDownloadZip}
+          disabled={isDownloading}
+          className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded flex items-center text-sm"
+        >
+          <Download className="h-4 w-4 mr-1.5" />
+          <span>ZIP (MD+Images)</span>
+        </button>
       </div>
 
-      {/* コンテンツ部分 - すべてのページをスクロール表示 */}
-      <div ref={containerRef} className="flex-1 overflow-y-auto bg-gray-50 scroll-smooth">
-        {ocrResult.pages.map((page: OCRPageObject, index: number) => (
+      {/* スプレッドシートエクスポートオプション */}
+      <ExportOptions ocrResult={ocrResult} />
+
+      {/* コンテンツ部分 */}
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-auto p-4 bg-gray-50"
+        style={{ scrollBehavior: "smooth" }}
+      >
+        {ocrResult.pages.map((page, pageIdx) => (
           <div
-            key={`page-${index}`}
-            ref={(el) => {
-              pageRefs.current[index] = el;
-            }}
-            data-page-index={index}
-            className={`bg-white m-3 p-4 rounded-lg shadow-sm border border-gray-100 transition-all ${
-              visiblePages.includes(index) ? "ring-2 ring-gray-200" : ""
-            }`}
+            key={`page-${pageIdx}`}
+            ref={(el) => (pageRefs.current[pageIdx] = el)}
+            data-page-index={pageIdx}
+            className="mb-8 last:mb-0"
           >
-            {/* ページヘッダー */}
-            <div className="pb-2 mb-3 flex items-center justify-between border-b border-gray-100">
-              <div className="flex items-center space-x-2">
-                <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-gray-100 text-gray-800 text-xs font-medium">
-                  {page.index + 1}
-                </span>
-                <h3 className="text-sm font-medium text-gray-700">
-                  Page {page.index + 1}/{ocrResult.pages.length}
-                </h3>
-              </div>
-              <div className="flex items-center">
-                {copyMessage && copyMessage.pageIndex === page.index && (
-                  <span className="mr-2 text-xs bg-green-50 text-green-600 px-2 py-1 rounded animate-pulse">
-                    {copyMessage.text}
-                  </span>
-                )}
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              {/* ページヘッダー */}
+              <div className="bg-gray-50 border-b px-4 py-2 flex justify-between items-center">
+                <h3 className="text-gray-700 font-medium">Page {pageIdx + 1}</h3>
                 <button
-                  onClick={() => page.markdown && copyToClipboard(page.markdown, page.index)}
-                  className={`text-sm px-2 py-1 bg-gray-50 text-gray-600 hover:bg-gray-100 rounded transition-colors flex items-center`}
-                  title="Copy markdown from this page"
-                  disabled={!page.markdown}
+                  onClick={() => {
+                    if (page.markdown) {
+                      copyToClipboard(page.markdown, pageIdx);
+                    }
+                  }}
+                  disabled={!page.markdown || copyingPage === pageIdx}
+                  className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded flex items-center"
                 >
-                  {copyingPage === page.index ? (
-                    <Check className="h-5 w-5 mr-1 text-green-500" />
+                  {copyingPage === pageIdx ? (
+                    <>
+                      <Check className="h-3 w-3 mr-1 text-green-600" />
+                      <span>Copied!</span>
+                    </>
                   ) : (
-                    <Copy className="h-5 w-5 mr-1" />
+                    <>
+                      <Copy className="h-3 w-3 mr-1" />
+                      <span>Copy</span>
+                    </>
                   )}
-                  {copyingPage === page.index ? "Copied" : "Copy"}
                 </button>
               </div>
-            </div>
 
-            {/* マークダウンコンテンツ */}
-            {page.markdown ? (
-              <div className="prose prose-sm prose-gray max-w-none bg-white rounded-md">
-                <ReactMarkdown
-                  remarkPlugins={[remarkMath, remarkGfm]}
-                  rehypePlugins={[rehypeKatex]}
-                  components={{
-                    p: ({ children }) => <p className="my-2 whitespace-pre-line">{children}</p>,
-                    h1: ({ children }) => (
-                      <h1 className="text-2xl font-bold mt-4 mb-2 pb-1 border-b">{children}</h1>
-                    ),
-                    h2: ({ children }) => (
-                      <h2 className="text-xl font-bold mt-3 mb-2">{children}</h2>
-                    ),
-                    h3: ({ children }) => (
-                      <h3 className="text-lg font-bold mt-3 mb-1">{children}</h3>
-                    ),
-                    ul: ({ children }) => <ul className="my-2 pl-6 list-disc">{children}</ul>,
-                    ol: ({ children }) => <ol className="my-2 pl-6 list-decimal">{children}</ol>,
-                    li: ({ children }) => <li className="my-1">{children}</li>,
-                    br: () => <br />,
-                    table: ({ children }) => (
-                      <div className="overflow-x-auto my-4">
-                        <table className="min-w-full divide-y divide-gray-200 border">
-                          {children}
-                        </table>
-                      </div>
-                    ),
-                    thead: ({ children }) => (
-                      <thead className="bg-gray-50 border-b border-gray-200">{children}</thead>
-                    ),
-                    tbody: ({ children }) => (
-                      <tbody className="bg-white divide-y divide-gray-200">{children}</tbody>
-                    ),
-                    tr: ({ children }) => <tr className="hover:bg-gray-50">{children}</tr>,
-                    th: ({ children }) => (
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider border-r last:border-r-0">
-                        {children}
-                      </th>
-                    ),
-                    td: ({ children }) => (
-                      <td className="px-3 py-2 text-sm text-gray-600 border-r last:border-r-0 whitespace-pre-wrap">
-                        {children}
-                      </td>
-                    ),
-                    blockquote: ({ children }) => (
-                      <blockquote className="border-l-4 border-gray-200 pl-4 py-1 my-2 text-gray-600 italic">
-                        {children}
-                      </blockquote>
-                    ),
-                    code: ({ children, className }) => {
-                      const match = /language-(\w+)/.exec(className || "");
-                      return (
-                        <div
-                          className={`my-2 overflow-auto rounded-md ${
-                            match ? "bg-gray-800" : "bg-gray-100"
-                          }`}
-                        >
-                          <pre
-                            className={`${
-                              match ? "text-gray-200 p-4" : "text-gray-800 p-3"
-                            } text-sm overflow-auto`}
+              {/* マークダウンコンテンツ */}
+              <div className="p-4 prose prose-sm max-w-none">
+                {page.markdown ? (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkMath, remarkGfm]}
+                    rehypePlugins={[rehypeKatex]}
+                    components={{
+                      pre: ({ ...props }) => {
+                        const match = props.children?.[0]?.props?.className?.includes("language-");
+                        return (
+                          <div
+                            className={`my-2 overflow-auto rounded-md ${
+                              match ? "bg-gray-800" : "bg-gray-100"
+                            }`}
                           >
-                            <code className={className}>{children}</code>
-                          </pre>
-                        </div>
-                      );
-                    },
-                    img: ({ src, alt }) => {
-                      // マークダウン内の画像参照とページの画像データを照合
-                      const fileName = src?.split("/").pop() || "";
-                      // 現在のページから一致する画像IDを持つ画像を探す
-                      const matchedImage = page.images?.find((img) => img.id === fileName);
-
-                      if (matchedImage?.imageBase64) {
-                        // base64データの形式を取得
-                        const base64Src = getImageFormat(matchedImage.imageBase64);
+                            <pre
+                              {...props}
+                              className={`p-4 ${match ? "text-gray-100" : "text-gray-800"}`}
+                            />
+                          </div>
+                        );
+                      },
+                      code: ({ inline, className, children, ...props }) => {
+                        const match = /language-(\w+)/.exec(className || "");
+                        return !inline && match ? (
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        ) : (
+                          <code
+                            className="px-1.5 py-0.5 mx-0.5 bg-gray-100 rounded text-gray-800 text-sm"
+                            {...props}
+                          >
+                            {children}
+                          </code>
+                        );
+                      },
+                      img: ({ src, alt }) => {
+                        // Base64画像の場合
+                        if (src && src.startsWith("data:")) {
+                          const base64Src = src;
+                          return (
+                            <img
+                              src={base64Src}
+                              alt={alt || ""}
+                              className="max-w-full h-auto rounded shadow-sm my-3 mx-auto block"
+                            />
+                          );
+                        }
+                        // 通常の画像の場合
                         return (
                           <img
-                            src={base64Src}
+                            src={src || ""}
                             alt={alt || ""}
                             className="max-w-full h-auto rounded shadow-sm my-3 mx-auto block"
                           />
                         );
-                      }
-
-                      // 画像が見つからない場合は元のsrcを使用
-                      return (
-                        <img
-                          src={src || ""}
-                          alt={alt || ""}
-                          className="max-w-full h-auto rounded shadow-sm my-3 mx-auto block"
-                        />
-                      );
-                    },
-                  }}
-                >
-                  {page.markdown}
-                </ReactMarkdown>
+                      },
+                    }}
+                  >
+                    {page.markdown}
+                  </ReactMarkdown>
+                ) : (
+                  <p className="text-gray-500 italic">No text content in this page.</p>
+                )}
               </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-12 w-12 mx-auto text-gray-300 mb-3"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                  />
-                </svg>
-                <p>No text could be extracted from this page</p>
-              </div>
-            )}
+            </div>
           </div>
         ))}
-      </div>
-
-      {/* フッターナビゲーション */}
-      <div className="bg-white border-t p-2 flex justify-between items-center">
-        <div className="text-xs text-gray-500">
-          Showing page {visiblePages.length > 0 ? visiblePages.map((p) => p + 1).join(", ") : "-"}{" "}
-          of {ocrResult.pages.length} pages
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            className="text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-            onClick={() => containerRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
-          >
-            Go to Top
-          </button>
-
-          <button
-            className="text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-            onClick={() =>
-              containerRef.current?.scrollTo({
-                top: containerRef.current.scrollHeight,
-                behavior: "smooth",
-              })
-            }
-          >
-            Go to Bottom
-          </button>
-        </div>
       </div>
     </div>
   );
 }
-
-// base64データの先頭バイトを確認して画像形式を自動判別
-const getImageFormat = (base64String: string) => {
-  try {
-    // base64データが先頭に「data:image/...;base64,」形式を含む場合は処理
-    if (base64String.startsWith("data:image/")) {
-      return base64String;
-    }
-
-    // 先頭バイトからMIMEタイプを判定
-    const byte = atob(base64String.substring(0, 4));
-
-    // 一般的な画像形式のシグネチャ
-    if (byte.startsWith("\xFF\xD8\xFF")) return `data:image/jpeg;base64,${base64String}`;
-    if (byte.startsWith("\x89PNG")) return `data:image/png;base64,${base64String}`;
-    if (byte.startsWith("GIF8")) return `data:image/gif;base64,${base64String}`;
-    if (byte.startsWith("RIFF")) return `data:image/webp;base64,${base64String}`;
-
-    // 判別できない場合はpngとして扱う
-    return `data:image/png;base64,${base64String}`;
-  } catch (e) {
-    console.error("Failed to get image format:", e);
-    // エラーが発生した場合はpngとして扱う
-    return `data:image/png;base64,${base64String}`;
-  }
-};
