@@ -9,6 +9,8 @@ import UploadResult from "./components/UploadResult";
 import Header from "./components/Header";
 import { useDropzone } from "react-dropzone";
 import Footer from "./components/Footer";
+import OCRHistory from "./components/OCRHistory";
+import { StoredOCRResult } from "./utils/storageUtils";
 
 export default function FileUploader() {
   const [file, setFile] = useState<File | null>(null);
@@ -25,6 +27,7 @@ export default function FileUploader() {
   >(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentStep, setCurrentStep] = useState<"upload" | "analyze" | "result">("upload");
+  const [filename, setFilename] = useState<string>("document.pdf");
 
   // Supported file types
   const acceptedFileTypes = {
@@ -62,6 +65,7 @@ export default function FileUploader() {
       }
 
       setFile(newFile);
+      setFilename(newFile.name);
       setUploadResult(null);
       setOcrResult(null);
       handleUpload(newFile);
@@ -90,6 +94,7 @@ export default function FileUploader() {
       }
 
       setFile(selectedFile);
+      setFilename(selectedFile.name);
       setUploadResult(null);
       setOcrResult(null);
       handleUpload(selectedFile);
@@ -189,11 +194,23 @@ export default function FileUploader() {
     setCurrentStep("upload");
   };
 
+  // 保存されたOCR結果を選択したときの処理
+  const handleSelectStoredResult = (storedResult: StoredOCRResult) => {
+    setOcrResult(storedResult.result);
+    setFilename(storedResult.filename);
+    setCurrentStep("result");
+  };
+
   // Initial upload state
   if (currentStep === "upload" && !file) {
     return (
       <div className="flex flex-col w-full h-screen">
         <Header isInitialUpload={true} />
+
+        <div className="flex justify-between items-center px-6 py-3">
+          <h1 className="text-xl font-bold">PDF2MD</h1>
+          <OCRHistory onSelectResult={handleSelectStoredResult} />
+        </div>
 
         <div
           {...getRootProps()}
@@ -236,6 +253,18 @@ export default function FileUploader() {
   return (
     <div className="flex flex-col h-screen w-full">
       <Header currentStep={currentStep} onReset={handleReset} />
+
+      {/* OCR履歴コンポーネント */}
+      {currentStep === "result" && (
+        <div className="px-4 py-2 bg-gray-100 border-b border-gray-200">
+          <div className="flex justify-between items-center">
+            <div className="text-sm text-gray-600">
+              現在表示中: <span className="font-medium">{filename}</span>
+            </div>
+            <OCRHistory onSelectResult={handleSelectStoredResult} />
+          </div>
+        </div>
+      )}
 
       {/* Main content: 2-column layout */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
@@ -336,7 +365,7 @@ export default function FileUploader() {
           ) : ocrResult ? (
             <div className="h-full flex flex-col">
               <div className="flex-1 overflow-auto">
-                <OcrResultView ocrResult={ocrResult} analyzing={false} />
+                <OcrResultView ocrResult={ocrResult} analyzing={false} filename={filename} />
               </div>
             </div>
           ) : (
