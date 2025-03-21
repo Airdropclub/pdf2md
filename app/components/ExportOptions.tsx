@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { OCRResponse } from "@mistralai/mistralai/src/models/components/ocrresponse.js";
 import { extractResumeData } from '../action/dataExtractor';
-import { generateResumeExcel } from '../action/excelGenerator';
 
 type ExportOptionsProps = {
   ocrResult: OCRResponse | null;
@@ -23,8 +22,22 @@ export default function ExportOptions({ ocrResult }: ExportOptionsProps) {
       // OCRデータから履歴書情報を抽出
       const resumeData = await extractResumeData(ocrResult);
       
-      // Excelファイルを生成
-      const excelUrl = await generateResumeExcel(resumeData);
+      // APIルートを使用してExcelファイルを生成
+      const response = await fetch('/api/excel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(resumeData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Excelファイルの生成に失敗しました');
+      }
+      
+      const data = await response.json();
+      const excelUrl = data.url;
       
       // ダウンロードリンクを作成して自動クリック
       const link = document.createElement('a');
